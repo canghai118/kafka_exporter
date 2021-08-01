@@ -218,6 +218,8 @@ func NewExporter(opts kafkaOpts, topicFilter string, groupFilter string) (*Expor
 	}
 
 	config.Metadata.RefreshFrequency = interval
+	config.Metadata.AllowAutoTopicCreation = false
+	config.Metadata.Retry.Max = 0
 
 	client, err := sarama.NewClient(opts.uri, config)
 
@@ -425,6 +427,12 @@ func (e *Exporter) Collect(ch chan<- prometheus.Metric) {
 		}
 		for _, group := range describeGroups.Groups {
 			offsetFetchRequest := sarama.OffsetFetchRequest{ConsumerGroup: group.GroupId, Version: 1}
+			for topic, partitions := range offset {
+				for partition := range partitions {
+					offsetFetchRequest.AddPartition(topic, partition)
+				}
+			}
+			/*
 			for _, member := range group.Members {
 				assignment, err := member.GetMemberAssignment()
 				if err != nil {
@@ -437,6 +445,7 @@ func (e *Exporter) Collect(ch chan<- prometheus.Metric) {
 					}
 				}
 			}
+			 */
 			ch <- prometheus.MustNewConstMetric(
 				consumergroupMembers, prometheus.GaugeValue, float64(len(group.Members)), group.GroupId,
 			)
